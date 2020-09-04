@@ -1,7 +1,30 @@
 # -2-1-3-Viterbi-Decoder-using-Verilog
 Viterbi Decoder for a (2,1,3) Convolutional Code 
 Xilinx ISE 14.7 was used to simulate the code. Synthesis was also performed. 
-The Following is the Hierarchy of Implementation:
+The following is the Hierarchy of Implementation:
 Testbench.v - 
-              Viterbi Top Module
-              Branch-Metric-Module.v
+              Viterbi-Top-Module.v
+              Branch-Metric-Unit.v
+              Add-Compare-Select-Unit.v 
+                - Add-Compare-Unit.v
+              Control-Unit.v
+              Decision-Unit.v
+              
+Following is a brief description of the project:
+I.	Introduction
+The Viterbi decoding algorithm was introduced in 1957 by Andrew Viterbi. It is a powerful error correcting algorithm widely used in GSM, CDMA, satellite communication, and so on.  It is a maximum likelihood decoding of Convolutional Codes. 
+Our project aims to design a Viterbi Decoder from scratch. It is important to note that a Viterbi Decoder in itself is not a device by rather a process that follows the Viterbi Algorithm to “traceback” the decoded information through the encoder trellis. 
+This article will consist of four sections (excluding this one): Design Specifications, Demonstration of results, Future Scope and References.
+
+II.	Design Specifications
+The (n, k, m) Convolutional Encoder is a device that encodes information bit sequences to produce encoded symbols. ‘k’ number of bits are given as input during one clock pulse, the encoder produces ‘n’ bit output symbols for those ‘k’ bits and this encoder needs memory ‘m’ (that is it needs to remember three previous inputs). We will deal with an encoder/decoder that produces two bit symbols (n=2) for every one input bit (k=1) clocked in, and remembers three previous states (m=3). 
+Think of it this way, every time a bit is clocked in - the encoded symbol is produced, and for the next clock pulse, this input becomes the previous input for a new input and so on (for three previous inputs). So the third previous input is “pushed” out of the memory. 
+The encoder follows the Boolean equations above to produce the output symbol Vx1  Vx2. That is, Vx1  is the modulo-2 sum of the input bit at the jth time instant with the inputs at (j-2) st and (j-3) st time instants. And, V2X is the modulo-2 sum of the input bit at the jth time instant with the inputs at (j-1) st, (j-2) st and (j-3) st time instants. 
+This can be represented using a state machine. The last input, the second last input and the third last input can be thought of as states (S0, S1, S2) of the encoder and the current input is the input to this state machine. The encoded symbols are the output to this state machine. 
+This state graph represents all possible transition in a single picture. A trellis is the opened up version of a state diagram with each possible transition going from one set of states to copies of the same set of states written separately. As the inputs are received, the decoder transitions from one state to another state in a different “stage” of the encoder. At j=0 time instant, the encoder is in the 0th stage, at j=1 time instant, it is in the 1st stage and so on. In the example illustrated above, notice the 0th stage has a bit written to the left of the states. The bit before the forward slash (“/”) is the input, and the bit after the slash is the output of the encoder if that input is applied at the state of the encoder. This notation applies to all states (we may call them nodes henceforth) of all stages (though not written next to each node). The reader will notice that this trellis is merely an “unravelled” version of the state graph – with each input/output made explicit in separate sets of states. 
+The information bit sequence is applied, and the trellis is followed (along the transitions) to produce the outputs corresponding to the transition arrows (or branches, as we may call them from now on). The upper arrows leaving a state correspond to the upper input/output pair (the pairs written the left of the first stage) and the lower arrows correspond to the lower pair. 
+For example, if we were to give an information sequence of 1 1 0 1 1, the encoded symbols would be 11 10 10 11 01 (the encoder attaches ‘m’ (=3) number of n-bit symbols to reset it to the initial state, usually, 000).  	
+Now, to decode, the receiver must reconstruct the trellis at its end. The first received symbol is compared with the outputs of all eight states of the 0th stage, and the Hamming Distance is calculated (the Hamming distance is the measure of how much a string is different from another, for example, the Hamming Distance (HD) between 00 01 is 1, or between 00 and 11 is 2). This Hamming Distance is assigned to each branch, and is called the Branch Metric. It is useful, at this point, to introduce a measure called the (Partial) Path Metric. The Path Metric of a node is defined as the sum of the Branch Metric of an incoming branch to that node and the Path Metric of the node it is coming from. The state 000 is assigned Path Metric 0 (since the encoder starts from that stage) and all other states in that stage are set to their maximum value (symbolically ∞). Every node has two incoming branches (except those in the 0th stage). The minimum Path Metric (Branch Metric + Partial Path Metric) is assigned to the node. Notice the numbers written above the states in the trellis shown. The metrics are computed and assigned. As the trellis is constructed (virtually, there won’t be actual instantiation of 2k × N number of states, where N is the number of stages (also equal to total number of symbols), backward labels will be stored (right shifted into) in shift registers associated with each state. These backward labels are the last state “pushed out” during encoding a single input bit, so that when the decoder is tracing back through the trellis, it will know which state to go to next in the previous stage of the trellis by simply traversing the register backwards (performing a left shift).
+For a large N (number of input symbols and thus stages) it is not silicon efficient to use an N-bit shift register. Hence, a smaller shift register is used. Literature tells us that the most optimum is 5*m-bit long where, m is the encoder memory. Here, m is 3, so the register is 15-bit long. Once, the trellis is constructed up to 15 stages, the decoding starts and the first 15 symbols out of N are decoded. And then it continues for the (N-15) remaining. 
+
+              
